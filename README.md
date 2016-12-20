@@ -11,18 +11,18 @@ Nature Methods (2017)
 Running the wrapper script
 --------------------------
 The wrapper script has a few software dependencies. They are: 
-*SeqPrep
-*samtools
-*bedtools
-*bowtie2
-*python / BioPython
+* SeqPrep
+* samtools
+* bedtools
+* bowtie2
+* python / BioPython
 
 The wrapper script also requires a few reference files, some of which are provided here in this repository. These include:
-*List of inner barcodes (provided)
-*List of outer barcodes (provided)
-*Combined bowtie2 reference for hg19 and mm10 (not provided)
-*BED file of all DpnII cutsites in the combined hg19/mm10 reference (not provided)
-*List of valid chromosome ids in format "chrid\tchr_length" (not provided, as this could conceivably change depending on the analysis)
+* List of inner barcodes (provided)
+* List of outer barcodes (provided)
+* Combined bowtie2 reference for hg19 and mm10 (not provided)
+* BED file of all DpnII cutsites in the combined hg19/mm10 reference (not provided)
+* List of valid chromosome ids in format "chrid\tchr_length" (not provided, as this could conceivably change depending on the analysis)
 
 Finally, the wrapper script takes raw, gzipped fastqs as input.
 
@@ -50,8 +50,6 @@ As is standard for Hi-C reads, the resulting processed and filtered reads 1 and 
 
 Cellular Demultiplexing & Quality Analysis
 ------------------------------------------
-
-
 When demultiplexing cells, we run two custom Python scripts. First, we generate a “percentages” file that includes the species purity of each cellular index, the coverage of each index, and the number of times a particular restriction fragment is observed once, twice, thrice, and four times. We also include the cis:trans ratio described above, and, if applicable, the fraction of homozygous alternate HeLa alleles observed. We use these percentages files to filter BEDPE files (see below) and generate, at any desired resolution, single cell matrices in long format (i.e. BIN1-BIN2-COUNT), with only the “upper diagonal” of the matrix included to reduce storage footprint. These matrices are then converted to numpy matrices for visualization and further analysis.
 
 Filtration of Cellular Indices
