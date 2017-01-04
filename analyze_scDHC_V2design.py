@@ -1,5 +1,4 @@
-#Script for analyzing massively parallel single-cell DNase Hi-C fastqs.
-#Dependencies: BioPython, BWA-MEM, samtools, bedtools
+#Script for analyzing sciHi-C fastqs.
 import os,sys,re
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 import itertools as it
@@ -39,7 +38,6 @@ def associateBarcodes(fhi_r1, fhi_r2, fho_r1, fho_r2, internal_bc):
 	bc_seq = {}
 	bc1s = [] #Container to store internal barcode IDs
 	bridge = ''
-#	bridge = 'GGCTGAGGGATCCCTCAGCC'
 	#Create a list of all possible internal barcodes (necessary
 	#for hamming distance calculations)
 	for line in internal_bc:
