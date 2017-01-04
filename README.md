@@ -24,6 +24,8 @@ The wrapper script also requires a few reference files, some of which are provid
 * BED file of all DpnII cutsites in the combined hg19/mm10 reference (not provided)
 * List of valid chromosome ids in format "chrid\tchr_length" (not provided, as this could conceivably change depending on the analysis)
 
+One will need to change specify some of the paths in the wrapper script, namely, the paths to the Python scripts / barcode files provided in this repo, and the paths to the reference files.
+
 Finally, the wrapper script takes raw, gzipped fastqs as input.
 
 The wrapper script is run as follows:
@@ -32,7 +34,7 @@ The wrapper script is run as follows:
 bash scihic_pipe.sh inner_barcodes.txt [R1.fq.gz] [R2.fq.gz] outer_barcodes.txt [outfile_prefix]
 ```
 
-By default, the wrapper script writes most files to local storage (/tmp/) to minimize network burden.
+As written, the wrapper script writes most files to local storage (/tmp/) to minimize network burden.
 
 Barcode Association & Read Trimming
 -----------------------------------
@@ -42,6 +44,12 @@ We first adaptor clip all reads using the SeqPrep utility. Then, to obtain round
 
 For each resulting “split” pair of reads, the two reads are then scanned using a custom Python script to find the common portion of the bridge adaptor sequence. The 8 bases immediately 5’ of this sequence are isolated and compared against the 96 known bridge adaptor barcodes, again using a Levenshtein distance cutoff of 2. There are cases where the entire bridge adaptor, including both barcodes flanking the ligation junction, is encountered in one mate, and not the other. To account for these cases, we also isolate the 8 bases flanking the 3’ end of the common bridge adaptor sequence (when it is encountered within a read), reverse complement it, and compare the resulting 8-mer against the 96 known bridge adaptor barcodes. Output reads are then clipped to remove the bridge adaptor and all 3’ sequence. Barcodes flanking the ligation junction should match; again, mates where barcodes do not match, or where a barcode is not found are discarded. 
 
+The custom Python script to filter terminal barcodes can be run separately as:
+```bash
+#Separate out terminal barcodes from reads
+python inline_splitter.py /tmp/$fq_r1.clipped /tmp/$fq_r2.clipped $barcodes /tmp/$fq_r1.split /tmp/$fq_r2.split 2> $outdir/splitting_stats.html
+```
+
 The result of this processing module are three files: filtered reads 1 and 2, and an “associations” file—a tab-delimited file where the name of each read passing the above filters and their associated barcode combination are listed.
 
 Read Alignment, Read Pairing, & Barcode Assocation
@@ -50,15 +58,35 @@ As is standard for Hi-C reads, the resulting processed and filtered reads 1 and 
 
 Cellular Demultiplexing & Quality Analysis
 ------------------------------------------
-When demultiplexing cells, we run two custom Python scripts. First, we generate a “percentages” file that includes the species purity of each cellular index, the coverage of each index, and the number of times a particular restriction fragment is observed once, twice, thrice, and four times. We also include the cis:trans ratio described above, and, if applicable, the fraction of homozygous alternate HeLa alleles observed. We use these percentages files to filter BEDPE files (see below) and generate, at any desired resolution, single cell matrices in long format (i.e. BIN1-BIN2-COUNT), with only the “upper diagonal” of the matrix included to reduce storage footprint. These matrices are then converted to numpy matrices for visualization and further analysis.
+When demultiplexing cells, we run two custom Python scripts. First, we generate a “percentages” file that includes the species purity of each cellular index, the coverage of each index, and the number of times a particular restriction fragment is observed once, twice, thrice, and four times. We also include the cis:trans ratio described above, and, if applicable, the fraction of homozygous alternate HeLa alleles observed. We use these percentages files to filter BEDPE files (see below) and generate, at any desired resolution, single cell matrices in long format (i.e. BIN1-BIN2-COUNT), with only the “upper diagonal” of the matrix included to reduce storage footprint. These matrices can then be converted to numpy matrices for visualization and further analysis.
+
+The percentages file, and the filtration criteria used in the paper (excluding HeLa genotype, which is not generalizable) can be generated separately by running the following:
+```bash
+#Generate PERCENTAGES file
+python calculate_cell_distro_long.py $bc_assoc.bedpe.mapq0.deduped.filtered > $bc_assoc.deduped.percentages 2> $bc_assoc.deduped.REoccurrences
+#Calculate single-cell length distribution
+python ~/python/scDHCpipeline/git/single_cell_length_distros.py $bc_assoc.deduped.percentages $bedpe.mapq0.deduped.filtered $bc_assoc > $bc_assoc.single_cell_lengths
+#Calculate median cis-trans ratios from these distributions
+python ~/python/scDHCpipeline/git/calculate_median_cistrans_ratio.py $bc_assoc.single_cell_lengths > $bc_assoc.cistrans.txt
+#Incorporate cistrans ratios in the percentages file
+python ~/python/scDHCpipeline/git/incorporate_cistrans_genotype.py $bc_assoc.cistrans.txt $bc_assoc.deduped.percentages > $bc_assoc.deduped.percentages.filterable
+```
 
 Filtration of Cellular Indices
 ------------------------------
 We applied several filters to our resulting cellular indices to arrive at the cells analyzed in this study. We first removed all cellular indices with fewer than 1000 unique reads. We next filtered out all indices where the cis:trans ratio was lower than 1. Finally, for all experiments we removed cellular indices where less than 95% of reads aligned uniquely to either the mouse (mm10) or human (hg19) genomes. For all human cells from HAP1 and HeLa S3 mixing experiments (Libraries ML1, ML2, PL1, and PL2) further filtration by genotype was performed. For each cellular index, we examined all reads overlapping with known alternate homozygous sites in the HeLa S3 genome and computed the fraction of sites where the alternate allele is observed. We then drew cutoffs to filter out all cells where this fraction fell between 56% and 99%. We employ this filtering step purely as an additional, conservative measure, and note that this is not strictly necessary. The clear separation of two populations in data derived from library ML4 (nocadazole arrest experiment), where no genotype filtration was performed, illustrates this.
 
+All of the experiments presented in Ramani et al employed a "programmed barcoding" strategy, where specific cell types were seeded in specific wells for the first round of barcoding (prior to mixing all cells together for second round barcoding). This enables easy cell type validation when analyzing sciHi-C data. To "label" the cells, use the appropriate assign_wellids Python script (e.g. assign_wellids_ML.py; assign_wellids_PL.py) as follows. In this example, assign_wellids_ML.py is used:
+```bash
+python assign_wellids_ML.py inner_barcodes.txt [human_cells.list] > [human_cells.list].labeled
+```
+Where [valid_cells.list] is a list of valid cells (generated by the wrapper script).
+
 PCA of sciHi-C Data
 -------------------
 Single-cell matrices at interchromosomal contact resolution (log10 of contact counts) and 10 Mb resolution (binarized; 0 if absent, 1 if present) were vectorized and concatenated using custom Python scripts. Concatenation was performed such that redundant entries of each contact matrix (i.e. Cij and Cji) were only represented once. Resulting matrices, where rows represent single-cells and columns represent observed contacts, were then decomposed using the PCA function in scikit-learn. For interchromosomal matrices, entries for intrachromosomal contacts (i.e. the diagonal) were set to 0. For 10 Mb intrachromosomal matrices, all interchromosomal contacts were ignored and all entries Cij where | i – j | < 3 were set to zero.
+
+Code to perform PCA is not included in the wrapper script, but is included in this repository
 
 Calculation of Contact Probabilities in Single Cells
 ----------------------------------------------------

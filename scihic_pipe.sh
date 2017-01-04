@@ -87,8 +87,6 @@ python ~/python/scDHCpipeline/git/calculate_cell_distro_long.py $bc_assoc.bedpe.
 wait
 #Write final HTML with stats
 cat $bc_assoc.baseline_stats.html $bc_assoc.deduped.stats.html $bc_assoc.associated.stats.html > $bc_assoc.html
-#Sort out all cells with >=3000 unique reads and generate matrices with
-#resolutions determined in bin_scHiC.py. These matrices are in sparse format.
 #Calculate single-cell length distribution
 python ~/python/scDHCpipeline/git/single_cell_length_distros.py $bc_assoc.deduped.percentages $bedpe.mapq0.deduped.filtered $bc_assoc > $bc_assoc.single_cell_lengths
 #Calculate median cis-trans ratios from these distributions
@@ -98,5 +96,9 @@ python ~/python/scDHCpipeline/git/incorporate_cistrans_genotype.py $bc_assoc.cis
 #Generate single-cell matrices
 python ~/python/scDHCpipeline/git/bin_schic_mouse_for_manuscript.py /net/shendure/vol8/projects/HiC.TCC.DHC.project/nobackup/HiC_resources/combo_hg19_mm10.genomesize $bc_assoc.deduped.percentages.filterable $bedpe.mapq0.deduped.filtered > foo
 rm foo
+#Store all of the matrix files in a separate directory
 mkdir $bc_assoc.matrices
 mv *.matrix $bc_assoc.matrices
+cd $bc_assoc.matrices
+#And generate list of valid matrices
+ls -l *.matrix > valid_cells.list
