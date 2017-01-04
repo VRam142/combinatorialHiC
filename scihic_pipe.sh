@@ -33,7 +33,7 @@ bedtools bamtobed -i /tmp/$fq_r1.bam > /tmp/$fq_r1.bed&
 bedtools bamtobed -i /tmp/$fq_r2.bam > /tmp/$fq_r2.bed&
 wait
 cd $outdir
-#Sort out all multimapping reads (MAPQ > 10)
+#Sort out all multimapping reads (MAPQ <= 30)
 awk '$5 > 30' /tmp/$fq_r1.bed > $fq_r1.bed.mapq0&
 awk '$5 > 30' /tmp/$fq_r2.bed > $fq_r2.bed.mapq0&
 wait
@@ -61,10 +61,10 @@ sort -k12,13 -k1,1 -k2,2n -k3,3 -k4,4n $bc_assoc.bedpe.mapq0 > $bc_assoc.bedpe.m
 #Deduplicate reads based on unique starts, ends, and barcodes with 5 bp of wiggle room
 python ~/python/scDHCpipeline/git/dedupe_scDHC.py $bc_assoc.bedpe.mapq0.sorted > $bc_assoc.bedpe.mapq0.deduped
 #Check some QC stats
-#Reads where both mates map uniquely (MAPQ > 10)?
+#Reads where both mates map uniquely (MAPQ > 30)?
 wc -l $bc_assoc.bedpe.mapq0 > $bc_assoc.ph1
 read mapped_reads_mapq < $bc_assoc.ph1
-#Reads where both deduplicated mates map uniquely (MAPQ > 10)?
+#Reads where both deduplicated mates map uniquely (MAPQ > 30)?
 wc -l $bc_assoc.bedpe.mapq0.deduped > $bc_assoc.ph1
 read associated_reads_mapq_dedupe junk < $bc_assoc.ph1
 #Cleanup
@@ -89,4 +89,14 @@ wait
 cat $bc_assoc.baseline_stats.html $bc_assoc.deduped.stats.html $bc_assoc.associated.stats.html > $bc_assoc.html
 #Sort out all cells with >=3000 unique reads and generate matrices with
 #resolutions determined in bin_scHiC.py. These matrices are in sparse format.
-#python ~/python/scDHCpipeline/git/bin_schic.py /net/shendure/vol8/projects/HiC.TCC.DHC.project/nobackup/HiC_resources/combo_hg19_mm10.genomesizes $bc_assoc.deduped.percentages $bc_assoc.bedpe.mapq0.deduped
+#Calculate single-cell length distribution
+python ~/python/scDHCpipeline/git/single_cell_length_distros.py $bc_assoc.deduped.percentages $bedpe.mapq0.deduped.filtered $bc_assoc > $bc_assoc.single_cell_lengths
+#Calculate median cis-trans ratios from these distributions
+python ~/python/scDHCpipeline/git/calculate_median_cistrans_ratio.py $bc_assoc.single_cell_lengths > $bc_assoc.cistrans.txt
+#Incorporate cistrans ratios in the percentages file
+python ~/python/scDHCpipeline/git/incorporate_cistrans_genotype.py $bc_assoc.cistrans.txt $bc_assoc.deduped.percentages > $bc_assoc.deduped.percentages.filterable
+#Generate single-cell matrices
+python ~/python/scDHCpipeline/git/bin_schic_mouse_for_manuscript.py /net/shendure/vol8/projects/HiC.TCC.DHC.project/nobackup/HiC_resources/combo_hg19_mm10.genomesize $bc_assoc.deduped.percentages.filterable $bedpe.mapq0.deduped.filtered > foo
+rm foo
+mkdir $bc_assoc.matrices
+mv *.matrix $bc_assoc.matrices
