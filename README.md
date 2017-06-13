@@ -38,7 +38,7 @@ As written, the wrapper script writes most files to local storage (/tmp/) to min
 
 Barcode Association & Read Trimming
 -----------------------------------
-Illumina indexed reads were demultiplexed allowing 1 mismatch. Demultiplexed raw reads are provided @ dbGaP study 21085 and GEO GSE84290.
+Illumina indexed reads were demultiplexed allowing 1 mismatch. Demultiplexed raw reads are provided @ dbGaP study accession phs001269.v1.p1 and GEO GSE84920.
 
 We first adaptor clip all reads using the SeqPrep utility. Then, to obtain round 2 (i.e. terminal) barcodes, we use a custom Python script to iterate through both mates, compare the first 8 bases of each read against the 96 known barcode sequences, and then assign barcodes to each mate using a Levenshtein distance cutoff of 2. Reads “split” in this way are output such that the first 11 bases of each read, which derivefrom the custom barcoded Y adaptors, are removed. Mates where either terminal barcode went unidentified, or where the terminal barcodes did not match, are discarded.
 
