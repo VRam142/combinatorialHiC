@@ -23,7 +23,7 @@ bowtie2 -x combo_hg19_mm10 -p 4 -U /tmp/$fq_r1.bc_clipped 2> $outdir/$fq_r1.mapp
 bowtie2 -x combo_hg19_mm10 -p 4 -U /tmp/$fq_r2.bc_clipped 2> $outdir/$fq_r2.mapping_stats | samtools view -bS - > /tmp/$fq_r2.bam&
 wait
 #Compute total # of bc_clipped reads and store that value
-wc -l $fq_r1.bc_clipped > $bc_assoc.ph1
+wc -l /tmp/$fq_r1.bc_clipped > $bc_assoc.ph1
 read reads_r1 junk < $bc_assoc.ph1
 total_reads=`expr $reads_r1 / 4`
 #Housekeeping
@@ -88,7 +88,7 @@ wait
 #Write final HTML with stats
 cat $bc_assoc.baseline_stats.html $bc_assoc.deduped.stats.html $bc_assoc.associated.stats.html > $bc_assoc.html
 #Calculate single-cell length distribution
-python single_cell_length_distros.py $bc_assoc.deduped.percentages $bedpe.mapq0.deduped.filtered $bc_assoc > $bc_assoc.single_cell_lengths
+python single_cell_length_distros.py $bc_assoc.deduped.percentages $bc_assoc.bedpe.mapq0.deduped.filtered $bc_assoc > $bc_assoc.single_cell_lengths
 #Calculate median cis-trans ratios from these distributions
 python calculate_median_cistrans_ratio.py $bc_assoc.single_cell_lengths > $bc_assoc.cistrans.txt
 #Incorporate cistrans ratios in the percentages file
